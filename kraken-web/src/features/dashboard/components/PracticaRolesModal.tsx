@@ -62,11 +62,11 @@ export function PracticaRolesModal({
             <Tag color="blue">{options?.mandatoryRole ?? "N/A"}</Tag>
           </div>
         </div>
-        {options?.allShownRoles?.length ? (
+        {options?.selectableRoles?.length ? (
           <div>
             <Typography.Text type="secondary">Roles disponibles</Typography.Text>
             <div className="mt-2 flex flex-wrap gap-2">
-              {options.allShownRoles.map((role) => (
+              {options.selectableRoles.map((role) => (
                 <Tag key={role}>{role}</Tag>
               ))}
             </div>

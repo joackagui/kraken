@@ -16,6 +16,9 @@ import { MeModule } from './me/me.module';
 import { PracticaRolesModule } from './practica-roles/practica-roles.module';
 import { CoursesModule } from './courses/courses.module';
 import { TermsModule } from './terms/terms.module';
+import { ProgramOfferingsController } from './program-offerings/program-offerings.controller';
+import { ProgramOfferingsService } from './program-offerings/program-offerings.service';
+import { ProgramOfferingsModule } from './program-offerings/program-offerings.module';
 
 @Module({
   imports: [
@@ -33,9 +36,10 @@ import { TermsModule } from './terms/terms.module';
     MeModule,
     PracticaRolesModule,
     CoursesModule,
-    TermsModule
+    TermsModule,
+    ProgramOfferingsModule
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [AppController, ProgramOfferingsController],
+  providers: [AppService, ProgramOfferingsService],
 })
 export class AppModule {}

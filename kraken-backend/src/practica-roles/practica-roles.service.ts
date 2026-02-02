@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EnrollmentStatus, EnrollmentTrack, JobRole } from '@prisma/client';
+import { count } from 'console';
 
 type Counts = Record<JobRole, number>;
 type Targets = Record<JobRole, number>;
@@ -35,6 +36,36 @@ export class PracticaRolesService {
     };
   }
 
+  private async countAssignedRoles(offeringId: string): Promise<Counts> {
+    const allAprroved = await this.prisma.enrollment.findMany({
+      where: {
+        offeringId: offeringId,
+        track: EnrollmentTrack.PRACTICA_INTERNA,
+        status: EnrollmentStatus.APPROVED,
+      },
+    });
+
+    const counts: Counts = {
+      [JobRole.QA]: 0,
+      [JobRole.FRONTEND]: 0,
+      [JobRole.BACKEND]: 0,
+      [JobRole.DEVOPS]: 0,
+    };
+
+    for (const enrollment of allAprroved) {
+      const roles = [
+        enrollment.prefRole1,
+        enrollment.prefRole2,
+        enrollment.prefRole3,
+      ];
+      if (roles.includes(JobRole.QA)) counts[JobRole.QA]++;
+      if (roles.includes(JobRole.FRONTEND)) counts[JobRole.FRONTEND]++;
+      if (roles.includes(JobRole.BACKEND)) counts[JobRole.BACKEND]++;
+      if (roles.includes(JobRole.DEVOPS)) counts[JobRole.DEVOPS]++;
+    }
+    return counts;
+  }
+
   private async countAssignedPrimaryRoles(offeringId: string): Promise<Counts> {
     const grouped = await this.prisma.enrollment.groupBy({
       by: ['primaryRole'],
@@ -61,19 +92,31 @@ export class PracticaRolesService {
   }
 
   private pickOptions(targets: Targets, counts: Counts) {
-    const scored = this.roles.map((role) => ({
+    const deficit = this.roles.map((role) => ({
       role,
       deficit: (targets[role] ?? 0) - (counts[role] ?? 0),
     }));
 
-    // mayor deficit = más faltante = más prioridad
-    scored.sort((a, b) => b.deficit - a.deficit);
+    deficit.sort((a, b) => b.deficit - a.deficit);
 
-    const mandatoryRole = scored[0].role;
-    const selectableRoles = [scored[1].role, scored[2].role];
+    const availableRoles = this.roles.filter(
+      (role) => counts[role] < targets[role],
+    );
+
+    availableRoles.sort((a, b) => {
+      const countDiff = counts[a] - counts[b];
+      if (countDiff !== 0) return countDiff;
+
+      const deficitA = (targets[a] ?? 0) - (counts[a] ?? 0);
+      const deficitB = (targets[b] ?? 0) - (counts[b] ?? 0);
+      return deficitB - deficitA;
+    });
+
+    const mandatoryRole = availableRoles[0];
+    const selectableRoles = availableRoles.slice(1, 4);
     const allShownRoles = [mandatoryRole, ...selectableRoles];
 
-    return { mandatoryRole, selectableRoles, allShownRoles, scored };
+    return { mandatoryRole, selectableRoles, allShownRoles, deficit };
   }
 
   async getRoleOptions(enrollmentId: string) {
@@ -97,7 +140,7 @@ export class PracticaRolesService {
     if (enr.status !== EnrollmentStatus.APPROVED)
       throw new BadRequestException('Enrollment is not APPROVED');
 
-    const totalApproved = await this.prisma.enrollment.count({
+    const allAprroved = await this.prisma.enrollment.findMany({
       where: {
         offeringId: enr.offeringId,
         track: EnrollmentTrack.PRACTICA_INTERNA,
@@ -105,11 +148,12 @@ export class PracticaRolesService {
       },
     });
 
-    const targets = this.computeTargets(totalApproved);
-    const counts = await this.countAssignedPrimaryRoles(enr.offeringId);
+    const targets = this.computeTargets(allAprroved.length * 3);
 
-    const { mandatoryRole, selectableRoles, allShownRoles, scored } =
-      this.pickOptions(targets, counts);
+    const countRolesAssigned = await this.countAssignedRoles(enr.offeringId);
+
+    const { mandatoryRole, selectableRoles, allShownRoles, deficit } =
+      this.pickOptions(targets, countRolesAssigned);
 
     return {
       enrollmentId: enr.id,
@@ -117,8 +161,8 @@ export class PracticaRolesService {
       selectableRoles,
       allShownRoles,
       targets,
-      counts,
-      deficits: scored,
+      deficit,
+      countRolesAssigned,
       alreadyChosen: {
         primaryRole: enr.primaryRole,
         prefRole1: enr.prefRole1,
