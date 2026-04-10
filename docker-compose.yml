@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kraken-postgres
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  kraken-backend:
+    build:
+      context: ./kraken-backend
+    container_name: kraken-backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    volumes:
+      - ./kraken-backend:/app
+      - backend_modules:/app/node_modules
+    restart: unless-stopped
+
+  kraken-web:
+    build:
+      context: ./kraken-web
+    container_name: kraken-web
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./kraken-web:/app
+      - web_modules:/app/node_modules
+    depends_on:
+      - kraken-backend
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    restart: unless-stopped
+
+volumes:
+  backend_modules:
+  web_modules:
+  postgres_data:
