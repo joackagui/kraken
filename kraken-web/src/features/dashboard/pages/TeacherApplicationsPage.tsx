@@ -184,7 +184,7 @@ export function TeacherApplicationsPage() {
         ) : (
           <Space direction="vertical" size={8} className="w-full">
             <Typography.Title level={3} className="!m-0">
-              Applications
+              Postulaciones
             </Typography.Title>
             <Typography.Text type="secondary">
               Postulaciones pendientes de aprobación
