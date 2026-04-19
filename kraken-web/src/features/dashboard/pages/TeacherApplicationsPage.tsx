@@ -14,6 +14,7 @@ import { OfferingsGrid } from "../applications/OfferingsGrid";
 import { OfferingApplicationsTable } from "../applications/OfferingApplicationsTable";
 import { useOfferings } from "../applications/useOfferings";
 import { useApplications } from "../applications/useApplications";
+import { tokenStorage } from "../../../services/tokenStorage";
 import type {
   ApplicationStatus,
   OfferingApplication,
@@ -79,10 +80,15 @@ export function TeacherApplicationsPage() {
     if (!modalState.record || !modalState.action) {
       return;
     }
+    const token = tokenStorage.getAccessToken();
+    if (!token) {
+      message.error("Tu sesión ha expirado. Inicia sesión nuevamente.");
+      return;
+    }
     setModalState((prev) => ({ ...prev, loading: true }));
     try {
       if (modalState.action === "approve") {
-        await approveEnrollment(modalState.record.id);
+        await approveEnrollment(modalState.record.id, token);
         message.success("Estudiante aprobado");
       } else {
         message.error("Rechazo no disponible en el backend.");

@@ -15,7 +15,7 @@ services:
       - uni_jira_pgdata:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -37,7 +37,8 @@ services:
     volumes:
       - ../kraken-backend:/app
       - backend_node_modules:/app/node_modules
-    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm prisma generate && pnpm run start:dev"
+    command: sh -c "corepack enable && pnpm install --frozen-lockfile && pnpm prisma
+      generate && pnpm run start:dev"
 
   frontend:
     image: node:20-alpine

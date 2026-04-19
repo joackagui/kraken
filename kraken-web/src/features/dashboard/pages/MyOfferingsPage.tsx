@@ -17,7 +17,11 @@ import { getMyOfferings } from "../../../services/me.api";
 import { getProfile } from "../../../services/profile.api";
 import { authSession } from "../../auth/auth.session";
 import { HttpError } from "../../../services/api";
-import { getPracticaRoleOptions, setPracticaRoles } from "../../../services/practicaRoles.api";
+import { tokenStorage } from "../../../services/tokenStorage";
+import {
+  getPracticaRoleOptions,
+  setPracticaRoles,
+} from "../../../services/practicaRoles.api";
 import type {
   Enrollment,
   PracticaRoleOptions,
@@ -49,12 +53,17 @@ export function MyOfferingsPage() {
   const [rolesModalOpen, setRolesModalOpen] = useState(false);
   const [rolesModalLoading, setRolesModalLoading] = useState(false);
   const [rolesModalError, setRolesModalError] = useState<string | null>(null);
-  const [rolesOptions, setRolesOptions] = useState<PracticaRoleOptions | null>(null);
-  const [activeEnrollmentId, setActiveEnrollmentId] = useState<string | null>(null);
+  const [rolesOptions, setRolesOptions] = useState<PracticaRoleOptions | null>(
+    null,
+  );
+  const [activeEnrollmentId, setActiveEnrollmentId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
     const userId = authSession.getUserId();
+    const token = tokenStorage.getAccessToken();
 
     if (!userId) {
       setError("No encontramos tu userId. Inicia sesión nuevamente.");
@@ -66,7 +75,10 @@ export function MyOfferingsPage() {
       setLoading(true);
       setError(null);
 
-      const results = await Promise.allSettled([getMyOfferings(userId), getProfile(userId)]);
+      const results = await Promise.allSettled([
+        getMyOfferings(userId, token ?? undefined),
+        getProfile(userId, token ?? undefined),
+      ]);
       if (!active) {
         return;
       }
@@ -102,11 +114,12 @@ export function MyOfferingsPage() {
 
   const refreshOfferings = async () => {
     const userId = authSession.getUserId();
+    const token = tokenStorage.getAccessToken();
     if (!userId) {
       return;
     }
     try {
-      const updated = await getMyOfferings(userId);
+      const updated = await getMyOfferings(userId, token ?? undefined);
       setEnrollments(updated);
     } catch {
       setError("No pudimos actualizar tus cursos.");
@@ -117,7 +130,8 @@ export function MyOfferingsPage() {
     () =>
       enrollments.filter(
         (enrollment) =>
-          enrollment.track === "PRACTICA_INTERNA" && enrollment.status === "APPROVED",
+          enrollment.track === "PRACTICA_INTERNA" &&
+          enrollment.status === "APPROVED",
       ),
     [enrollments],
   );
@@ -180,7 +194,9 @@ export function MyOfferingsPage() {
           <Row gutter={[24, 24]} align="middle">
             <Col xs={24} md={14}>
               <Space direction="vertical" size={8}>
-                <Typography.Text className="eyebrow">Mis cursos</Typography.Text>
+                <Typography.Text className="eyebrow">
+                  Mis cursos
+                </Typography.Text>
                 <Typography.Title level={2} className="hero-title">
                   Mis cursos
                 </Typography.Title>
@@ -231,7 +247,12 @@ export function MyOfferingsPage() {
         </Card>
 
         {error ? (
-          <Alert type="warning" message="Datos incompletos" description={error} showIcon />
+          <Alert
+            type="warning"
+            message="Datos incompletos"
+            description={error}
+            showIcon
+          />
         ) : null}
 
         <Row gutter={[24, 24]}>

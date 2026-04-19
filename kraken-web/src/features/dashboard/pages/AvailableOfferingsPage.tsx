@@ -24,6 +24,7 @@ import { getMyOfferings } from "../../../services/me.api";
 import { applyToOffering } from "../../../services/enrollments.api";
 import { getProfile } from "../../../services/profile.api";
 import { HttpError } from "../../../services/api";
+import { tokenStorage } from "../../../services/tokenStorage";
 import type {
   CourseOffering,
   Enrollment,
@@ -49,7 +50,9 @@ const formatDateRange = (startsAt?: string | null, endsAt?: string | null) => {
     month: "short",
     year: "numeric",
   });
-  const startLabel = startsAt ? formatter.format(new Date(startsAt)) : "Sin fecha";
+  const startLabel = startsAt
+    ? formatter.format(new Date(startsAt))
+    : "Sin fecha";
   const endLabel = endsAt ? formatter.format(new Date(endsAt)) : "Sin fecha";
   return `${startLabel} - ${endLabel}`;
 };
@@ -60,7 +63,9 @@ const normalizeText = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase();
 
-const inferTrack = (offering: CourseOffering): "PRACTICA_INTERNA" | "INDUCCION" | null => {
+const inferTrack = (
+  offering: CourseOffering,
+): "PRACTICA_INTERNA" | "INDUCCION" | null => {
   const code = normalizeText(offering.course?.code ?? "");
   const name = normalizeText(offering.course?.name ?? "");
   if (code === "PRACTICA_INT" || name.includes("PRACTICA")) {
@@ -112,6 +117,7 @@ export function AvailableOfferingsPage() {
   useEffect(() => {
     let active = true;
     const userId = getUserId();
+    const token = tokenStorage.getAccessToken();
 
     if (!userId) {
       setError("No encontramos tu userId. Inicia sesión nuevamente.");
@@ -125,8 +131,8 @@ export function AvailableOfferingsPage() {
 
       const results = await Promise.allSettled([
         getAvailableOfferings(),
-        getMyOfferings(userId),
-        getProfile(userId),
+        getMyOfferings(userId, token ?? undefined),
+        getProfile(userId, token ?? undefined),
       ]);
 
       if (!active) {
@@ -216,10 +222,17 @@ export function AvailableOfferingsPage() {
 
   const handleApply = async (offering: CourseOffering) => {
     const userId = getUserId();
+    const token = tokenStorage.getAccessToken();
+
     if (!userId) {
       message.error("No encontramos tu usuario. Inicia sesión nuevamente.");
       return;
     }
+    if (!token) {
+      message.error("Tu sesión ha expirado. Inicia sesión nuevamente.");
+      return;
+    }
+
     const track = inferTrack(offering);
     if (!track) {
       message.error("No pudimos inferir el track para este curso.");
@@ -233,7 +246,11 @@ export function AvailableOfferingsPage() {
 
     setPendingIds((prev) => new Set(prev).add(offering.id));
     try {
-      await applyToOffering(offering.id, { userId, track, academicYear });
+      await applyToOffering(
+        offering.id,
+        { userId, track, academicYear },
+        token,
+      );
       message.success("Aplicación enviada");
     } catch (error) {
       setPendingIds((prev) => {
@@ -262,7 +279,12 @@ export function AvailableOfferingsPage() {
         </Space>
 
         {error ? (
-          <Alert type="warning" message="Datos incompletos" description={error} showIcon />
+          <Alert
+            type="warning"
+            message="Datos incompletos"
+            description={error}
+            showIcon
+          />
         ) : null}
 
         <Card className="dashboard-card">
@@ -276,7 +298,10 @@ export function AvailableOfferingsPage() {
                   onChange={(value) => setYearFilter(value)}
                   options={[
                     { label: "Todos", value: "ALL" },
-                    ...yearOptions.map((year) => ({ label: year, value: year })),
+                    ...yearOptions.map((year) => ({
+                      label: year,
+                      value: year,
+                    })),
                   ]}
                 />
               </Space>
@@ -287,7 +312,10 @@ export function AvailableOfferingsPage() {
                 <Segmented
                   options={[
                     { label: trackLabel.ALL, value: "ALL" },
-                    { label: trackLabel.PRACTICA_INTERNA, value: "PRACTICA_INTERNA" },
+                    {
+                      label: trackLabel.PRACTICA_INTERNA,
+                      value: "PRACTICA_INTERNA",
+                    },
                     { label: trackLabel.INDUCCION, value: "INDUCCION" },
                   ]}
                   value={trackFilter}
@@ -362,7 +390,9 @@ export function AvailableOfferingsPage() {
                             <Typography.Text type="secondary">
                               {offering.term?.name ?? "Sin periodo"} •{" "}
                               {offering.term?.year ?? "N/A"}
-                              {offering.term?.period ? ` • ${offering.term.period}` : ""}
+                              {offering.term?.period
+                                ? ` • ${offering.term.period}`
+                                : ""}
                             </Typography.Text>
                             <Typography.Text type="secondary">
                               Docente: {getTeacherLabel(offering)}

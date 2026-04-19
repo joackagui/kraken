@@ -23,6 +23,7 @@ import { getProfile } from "../../services/profile.api";
 import { getWallet } from "../../services/wallet.api";
 import { HttpError } from "../../services/api";
 import { authSession } from "../auth/auth.session";
+import { tokenStorage } from "../../services/tokenStorage";
 import type {
   Enrollment,
   Profile,
@@ -58,14 +59,22 @@ const fallbackProfile: Profile = {
 };
 
 const getPrimaryEnrollment = (enrollments: Enrollment[]) => {
-  const approved = enrollments.filter((enrollment) => enrollment.status === "APPROVED");
-  const practica = approved.find((enrollment) => enrollment.track === "PRACTICA_INTERNA");
+  const approved = enrollments.filter(
+    (enrollment) => enrollment.status === "APPROVED",
+  );
+  const practica = approved.find(
+    (enrollment) => enrollment.track === "PRACTICA_INTERNA",
+  );
   return practica ?? approved[0] ?? null;
 };
 
 const buildNextAction = (enrollments: Enrollment[]) => {
-  const approved = enrollments.filter((enrollment) => enrollment.status === "APPROVED");
-  const practica = approved.find((enrollment) => enrollment.track === "PRACTICA_INTERNA");
+  const approved = enrollments.filter(
+    (enrollment) => enrollment.status === "APPROVED",
+  );
+  const practica = approved.find(
+    (enrollment) => enrollment.track === "PRACTICA_INTERNA",
+  );
 
   if (practica) {
     const hasRoles = Boolean(
@@ -119,6 +128,7 @@ export function Dashboard() {
   useEffect(() => {
     let active = true;
     const userId = getUserId();
+    const token = tokenStorage.getAccessToken();
 
     if (!userId) {
       setError("No encontramos tu userId. Inicia sesión nuevamente.");
@@ -131,9 +141,9 @@ export function Dashboard() {
       setError(null);
 
       const results = await Promise.allSettled([
-        getProfile(userId),
+        getProfile(userId, token ?? undefined),
         getWallet(userId),
-        getMyOfferings(userId),
+        getMyOfferings(userId, token ?? undefined),
       ]);
 
       if (!active) {
@@ -187,12 +197,16 @@ export function Dashboard() {
   const fullName =
     profile.fullName && profile.fullName.trim().length > 0
       ? profile.fullName
-      : userInfo?.email ?? fallbackProfile.fullName ?? "Estudiante Kraken";
+      : (userInfo?.email ?? fallbackProfile.fullName ?? "Estudiante Kraken");
   const initials = useMemo(() => getInitials(fullName), [fullName]);
   const role = profile.role ? formatLabel(profile.role) : "student";
   const primaryEnrollment = getPrimaryEnrollment(enrollments);
-  const statusLabel = primaryEnrollment ? formatLabel(primaryEnrollment.status) : "sin estado";
-  const trackLabel = primaryEnrollment ? formatLabel(primaryEnrollment.track) : "sin track";
+  const statusLabel = primaryEnrollment
+    ? formatLabel(primaryEnrollment.status)
+    : "sin estado";
+  const trackLabel = primaryEnrollment
+    ? formatLabel(primaryEnrollment.track)
+    : "sin track";
   const nextAction = buildNextAction(enrollments);
   const recentCourses = enrollments.slice(0, 3);
 
@@ -208,16 +222,22 @@ export function Dashboard() {
           />
         ) : null}
 
-        <Card className="dashboard-hero-card" bordered={false} loading={loading}>
+        <Card
+          className="dashboard-hero-card"
+          bordered={false}
+          loading={loading}
+        >
           <Row gutter={[24, 24]} align="middle">
             <Col xs={24} lg={14}>
-              <Typography.Text className="eyebrow">Welcome back</Typography.Text>
+              <Typography.Text className="eyebrow">
+                Welcome back
+              </Typography.Text>
               <Typography.Title level={2} className="hero-title">
                 Hi, {fullName.split(" ")[0] || "there"}
               </Typography.Title>
               <Typography.Paragraph className="hero-subtitle">
-                Track your rewards, keep your progress visible, and stay aligned with your
-                goals.
+                Track your rewards, keep your progress visible, and stay aligned
+                with your goals.
               </Typography.Paragraph>
               <Space size={[8, 8]} wrap className="pill-row">
                 <Tag className="pill-tag">Role: {role}</Tag>
@@ -240,8 +260,13 @@ export function Dashboard() {
                     <Typography.Text className="wallet-title">
                       Wallet snapshot
                     </Typography.Text>
-                    <Typography.Text className="wallet-subtitle" type="secondary">
-                      {profile.handle ? `@${profile.handle}` : userInfo?.email ?? "Sin email"}
+                    <Typography.Text
+                      className="wallet-subtitle"
+                      type="secondary"
+                    >
+                      {profile.handle
+                        ? `@${profile.handle}`
+                        : (userInfo?.email ?? "Sin email")}
                     </Typography.Text>
                   </div>
                 </Space>
@@ -253,13 +278,16 @@ export function Dashboard() {
                   </Col>
                   <Col span={12}>
                     <Card className="wallet-stat" bordered={false}>
-                      <Statistic title="Diamonds" value={wallet.diamondsBalance} />
+                      <Statistic
+                        title="Diamonds"
+                        value={wallet.diamondsBalance}
+                      />
                     </Card>
                   </Col>
                 </Row>
                 <Typography.Text className="wallet-footnote" type="secondary">
-                  Keep earning by completing missions and collaborating with your
-                  squad.
+                  Keep earning by completing missions and collaborating with
+                  your squad.
                 </Typography.Text>
               </Card>
             </Col>
@@ -269,13 +297,19 @@ export function Dashboard() {
         <section className="dashboard-grid">
           <Row gutter={[18, 18]}>
             <Col xs={24} md={12} xl={6}>
-              <Card className="dashboard-card" title="Profile highlights" loading={loading}>
+              <Card
+                className="dashboard-card"
+                title="Profile highlights"
+                loading={loading}
+              >
                 <Descriptions
                   column={1}
                   size="small"
                   className="dashboard-descriptions"
                 >
-                  <Descriptions.Item label="Full name">{fullName}</Descriptions.Item>
+                  <Descriptions.Item label="Full name">
+                    {fullName}
+                  </Descriptions.Item>
                   <Descriptions.Item label="Email">
                     {userInfo?.email ?? "Sin email"}
                   </Descriptions.Item>
@@ -285,7 +319,11 @@ export function Dashboard() {
             </Col>
 
             <Col xs={24} md={12} xl={6}>
-              <Card className="dashboard-card" title="Momentum" loading={loading}>
+              <Card
+                className="dashboard-card"
+                title="Momentum"
+                loading={loading}
+              >
                 <Space direction="vertical" size={12} className="card-stack">
                   <Progress
                     percent={72}
@@ -297,7 +335,11 @@ export function Dashboard() {
                   </Typography.Text>
                   <Row gutter={12}>
                     <Col span={12}>
-                      <Statistic title="Weekly streak" value={4} suffix="weeks" />
+                      <Statistic
+                        title="Weekly streak"
+                        value={4}
+                        suffix="weeks"
+                      />
                     </Col>
                     <Col span={12}>
                       <Statistic title="Missions done" value={18} />
@@ -308,17 +350,26 @@ export function Dashboard() {
             </Col>
 
             <Col xs={24} md={12} xl={6}>
-              <Card className="dashboard-card" title="Next actions" loading={loading}>
+              <Card
+                className="dashboard-card"
+                title="Next actions"
+                loading={loading}
+              >
                 <Space direction="vertical" size={12} className="card-stack">
                   <div>
                     <Typography.Text strong>{nextAction.title}</Typography.Text>
-                    <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+                    <Typography.Paragraph
+                      type="secondary"
+                      style={{ margin: 0 }}
+                    >
                       {nextAction.description}
                     </Typography.Paragraph>
                   </div>
                   {nextAction.to ? (
                     <Button
-                      type={nextAction.kind === "primary" ? "primary" : "default"}
+                      type={
+                        nextAction.kind === "primary" ? "primary" : "default"
+                      }
                       size="middle"
                     >
                       <Link to={nextAction.to}>Ir ahora</Link>
@@ -333,7 +384,11 @@ export function Dashboard() {
             </Col>
 
             <Col xs={24} md={12} xl={6}>
-              <Card className="dashboard-card" title="Mis cursos recientes" loading={loading}>
+              <Card
+                className="dashboard-card"
+                title="Mis cursos recientes"
+                loading={loading}
+              >
                 {recentCourses.length === 0 && !loading ? (
                   <Empty description="Sin cursos aprobados" />
                 ) : (

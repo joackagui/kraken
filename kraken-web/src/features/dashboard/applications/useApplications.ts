@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
-import type { ApplicationsQuery, ApplicationsResponse, OfferingApplication } from "./types";
+import type {
+  ApplicationsQuery,
+  ApplicationsResponse,
+  OfferingApplication,
+} from "./types";
 import { getApplications } from "../../../services/teacher.api";
+import { tokenStorage } from "../../../services/tokenStorage";
 import type { EnrollmentApplication } from "../../../types/academics";
 
 export const useApplications = (
   offeringId: string | null,
   query: ApplicationsQuery,
 ) => {
-  const [data, setData] = useState<ApplicationsResponse>({ items: [], total: 0 });
+  const [data, setData] = useState<ApplicationsResponse>({
+    items: [],
+    total: 0,
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,22 +27,31 @@ export const useApplications = (
     setLoading(true);
     setError(null);
     try {
+      const token = tokenStorage.getAccessToken();
       const status =
         query.status && query.status !== "ALL" ? query.status : undefined;
-      const items = await getApplications(offeringId, status);
-      const normalized: OfferingApplication[] = items.map((app: EnrollmentApplication) => ({
-        id: app.id,
+      const items = await getApplications(
         offeringId,
-        student: {
-          id: app.student?.email ?? app.id,
-          fullName:
-            app.student?.profile?.fullName ?? app.student?.email ?? "Sin nombre",
-          email: app.student?.email ?? "Sin email",
-        },
-        track: app.track as OfferingApplication["track"],
-        status: app.status as OfferingApplication["status"],
-        createdAt: app.createdAt ?? new Date().toISOString(),
-      }));
+        status,
+        token ?? undefined,
+      );
+      const normalized: OfferingApplication[] = items.map(
+        (app: EnrollmentApplication) => ({
+          id: app.id,
+          offeringId,
+          student: {
+            id: app.student?.email ?? app.id,
+            fullName:
+              app.student?.profile?.fullName ??
+              app.student?.email ??
+              "Sin nombre",
+            email: app.student?.email ?? "Sin email",
+          },
+          track: app.track as OfferingApplication["track"],
+          status: app.status as OfferingApplication["status"],
+          createdAt: app.createdAt ?? new Date().toISOString(),
+        }),
+      );
 
       const queryValue = query.q?.trim().toLowerCase() ?? "";
       const filtered = queryValue
